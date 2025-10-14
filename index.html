@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Wash a Pibble 🐶💦</title>
+<style>
+* {margin:0;padding:0;box-sizing:border-box;font-family:sans-serif;}
+body, html {width:100%;height:100%;overflow:hidden;background:#f0f0f0;}
+header {position:fixed;top:0;left:0;width:100%;background:#ffcc00;padding:10px;text-align:center;font-size:1.5em;font-weight:bold;z-index:10;}
+#stats {position:fixed;top:50px;width:100%;text-align:center;font-size:1em;z-index:10;}
+.room {width:100vw;height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:3em;color:#fff;position:absolute;top:0;left:0;transition:transform 0.5s;}
+#bathroom {background:#4dd2ff;}
+#bedroom {background:#ff99cc;}
+#kitchen {background:#ff9966;}
+#living {background:#66cc66;}
+.room-buttons {position:absolute;bottom:80px;display:flex;gap:10px;flex-wrap:wrap;}
+button {padding:10px 20px;font-size:1em;border:none;border-radius:10px;cursor:pointer;transition:0.2s;position:relative;overflow:hidden;}
+button:hover {transform:scale(1.1);}
+#pibble {font-size:5em;position:relative;z-index:2;transition:all 0.5s;}
+.particle {position:absolute;width:10px;height:10px;border-radius:50%;background:#fff;pointer-events:none;animation:rise 0.6s forwards;}
+@keyframes rise {0%{opacity:1;transform:translateY(0) scale(1);}100%{opacity:0;transform:translateY(-50px) scale(0.5);}}
+#snakeCanvas {display:none;background:#000;border-radius:10px;margin:0 auto;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);}
+#joystick {display:none;position:absolute;bottom:20px;left:50%;transform:translateX(-50%);display:flex;gap:10px;}
+.joystick-btn {padding:15px 20px;font-size:1.5em;border-radius:10px;background:#fff;cursor:pointer;}
+</style>
+</head>
+<body>
+
+<header>Wash a Pibble 🐶💦</header>
+<div id="stats">
+  Limpeza: <span id="clean">50</span>% | Felicidade: <span id="happy">50</span>% | Fome: <span id="hunger">50</span>%
+</div>
+
+<!-- Banheiro -->
+<div id="bathroom" class="room">
+  <div id="pibble">🐶</div>
+  <div class="room-buttons">
+    <button onclick="wash(event)">🧼 Lavar</button>
+    <button onclick="moveRoom('right')">➡️ Próximo</button>
+  </div>
+</div>
+
+<!-- Quarto -->
+<div id="bedroom" class="room">
+  <div id="pibble">🐶</div>
+  <div class="room-buttons">
+    <button onclick="brush(event)">🪥 Escovar</button>
+    <button onclick="moveRoom('left')">⬅️ Anterior</button>
+    <button onclick="moveRoom('right')">➡️ Próximo</button>
+  </div>
+</div>
+
+<!-- Cozinha -->
+<div id="kitchen" class="room">
+  <div id="pibble">🐶</div>
+  <div class="room-buttons">
+    <button onclick="feed(event)">🍖 Alimentar</button>
+    <button onclick="moveRoom('left')">⬅️ Anterior</button>
+    <button onclick="moveRoom('right')">➡️ Próximo</button>
+  </div>
+</div>
+
+<!-- Sala -->
+<div id="living" class="room">
+  <div id="pibble">🐶</div>
+  <canvas id="snakeCanvas" width="300" height="300"></canvas>
+  <div id="joystick">
+    <button class="joystick-btn" onclick="changeDirection('up')">⬆️</button>
+    <button class="joystick-btn" onclick="changeDirection('left')">⬅️</button>
+    <button class="joystick-btn" onclick="changeDirection('down')">⬇️</button>
+    <button class="joystick-btn" onclick="changeDirection('right')">➡️</button>
+  </div>
+  <div class="room-buttons">
+    <button id="startSnake">🎮 Jogar Cobra</button>
+    <button onclick="moveRoom('left')">⬅️ Anterior</button>
+  </div>
+</div>
+
+<script>
+// ------------------- Stats e Cômodos -------------------
+let rooms=['bathroom','bedroom','kitchen','living'];
+let currentRoom=0;
+let stats={clean:50,happy:50,hunger:50};
+
+if(localStorage.getItem('pibbleStats')){
+  stats=JSON.parse(localStorage.getItem('pibbleStats'));
+  currentRoom=parseInt(localStorage.getItem('pibbleRoom'))||0;
+}
+
+function updateStats(){
+  document.getElementById('clean').innerText=stats.clean;
+  document.getElementById('happy').innerText=stats.happy;
+  document.getElementById('hunger').innerText=stats.hunger;
+  localStorage.setItem('pibbleStats',JSON.stringify(stats));
+  
+  // Diminui stats com o tempo
+setInterval(()=>{
+  stats.clean = Math.max(stats.clean - 1, 0); // limpeza cai 1
+  stats.happy = Math.max(stats.happy - 1, 0); // felicidade cai 1
+  stats.hunger = Math.max(stats.hunger - 1, 0); // fome cai 1
+  updateStats();
+}, 2500); // a cada 5 segundos
+}
+
+function moveRoom(direction){
+  let prevRoom=document.getElementById(rooms[currentRoom]);
+  if(direction==='left') currentRoom=(currentRoom-1+rooms.length)%rooms.length;
+  else currentRoom=(currentRoom+1)%rooms.length;
+  let nextRoom=document.getElementById(rooms[currentRoom]);
+  
+  nextRoom.style.display='flex';
+  nextRoom.style.transform='translateX('+(direction==='left' ? '-100vw':'100vw')+')';
+  setTimeout(()=>{ nextRoom.style.transform='translateX(0)'; prevRoom.style.transform='translateX('+(direction==='left' ? '100vw':'-100vw')+')';},50);
+  setTimeout(()=>{ prevRoom.style.display='none'; prevRoom.style.transform='translateX(0)';},500);
+  
+  localStorage.setItem('pibbleRoom',currentRoom);
+}
+
+// ------------------- Partículas -------------------
+function spawnParticles(event){
+  const btn=event.currentTarget;
+  for(let i=0;i<10;i++){
+    const p=document.createElement('div');
+    p.className='particle';
+    p.style.background=['#ff0','#0ff','#f0f','#fff','#f90'][Math.floor(Math.random()*5)];
+    p.style.left=event.clientX+'px';
+    p.style.top=event.clientY+'px';
+    document.body.appendChild(p);
+    setTimeout(()=>p.remove(),600);
+  }
+}
+
+// ------------------- Ações -------------------
+function wash(event){ spawnParticles(event); if(currentRoom!==0){alert('Você precisa estar no banheiro!'); return;} stats.clean=Math.min(stats.clean+15,100); stats.happy=Math.min(stats.happy+5,100); updateStats();}
+function brush(event){ spawnParticles(event); if(currentRoom!==1){alert('Você precisa estar no quarto!'); return;} stats.happy=Math.min(stats.happy+15,100); stats.clean=Math.min(stats.clean+5,100); updateStats();}
+function feed(event){ spawnParticles(event); if(currentRoom!==2){alert('Você precisa estar na cozinha!'); return;} stats.hunger=Math.min(stats.hunger+20,100); stats.happy=Math.min(stats.happy+5,100); updateStats();}
+
+// ------------------- Cobra -------------------
+let snakeCanvas=document.getElementById('snakeCanvas');
+let ctx=snakeCanvas.getContext('2d');
+let startBtn=document.getElementById('startSnake');
+let joystick=document.getElementById('joystick');
+let snake,food,dir,gameInterval;
+let pibbleLiving=document.querySelector('#living #pibble');
+
+startBtn.onclick=function(){
+  if(currentRoom!==3){alert('Você precisa estar na sala!'); return;}
+  
+  // Esconde o Pibble
+  pibbleLiving.style.display='none';
+  
+  snakeCanvas.style.display='block';
+  joystick.style.display='flex';
+  startBtn.style.display='none';
+  startSnake();
+};
+
+function endSnakeGame(){
+  clearInterval(gameInterval);
+  snakeCanvas.style.display='none';
+  joystick.style.display='none';
+  startBtn.style.display='block';
+  
+  // Mostra o Pibble de volta no centro
+  pibbleLiving.style.display='block';
+  pibbleLiving.style.position='relative';
+  pibbleLiving.style.top='0';
+  pibbleLiving.style.left='50%';
+  pibbleLiving.style.transform='translateX(-50%)';
+}
+
+function startSnake(){
+  snake=[{x:5,y:5}];
+  dir='right';
+  food={x:Math.floor(Math.random()*15),y:Math.floor(Math.random()*15)};
+  if(gameInterval) clearInterval(gameInterval);
+  gameInterval=setInterval(gameLoop,200);
+}
+
+function changeDirection(d){
+  if((d==='up'&&dir!=='down')||(d==='down'&&dir!=='up')||(d==='left'&&dir!=='right')||(d==='right'&&dir!=='left')){
+    dir=d;
+  }
+}
+
+function gameLoop(){
+  // Move snake
+  let head={...snake[0]};
+  if(dir==='up') head.y--;
+  if(dir==='down') head.y++;
+  if(dir==='left') head.x--;
+  if(dir==='right') head.x++;
+
+  // Verifica colisão
+  if(head.x<0||head.x>=15||head.y<0||head.y>=15||snake.some(s=>s.x===head.x&&s.y===head.y)){
+    alert('Game Over!');
+    endSnakeGame();
+    return;
+  }
+
+  snake.unshift(head);
+
+  // Comida
+  if(head.x===food.x && head.y===food.y){
+    food={x:Math.floor(Math.random()*15),y:Math.floor(Math.random()*15)};
+  } else {
+    snake.pop();
+  }
+
+  drawSnake();
+}
+
+function drawSnake(){
+  ctx.clearRect(0,0,snakeCanvas.width,snakeCanvas.height);
+  // Desenha comida
+  ctx.fillStyle='red';
+  ctx.fillRect(food.x*20,food.y*20,20,20);
+  // Desenha snake
+  ctx.fillStyle='lime';
+  snake.forEach(s=>ctx.fillRect(s.x*20,s.y*20,20,20));
+}
+
+// Inicializa
+updateStats();
+rooms.forEach((r,i)=>{
+  document.getElementById(r).style.display=(i===currentRoom)?'flex':'none';
+});
+</script>
+</body>
+  </html>
